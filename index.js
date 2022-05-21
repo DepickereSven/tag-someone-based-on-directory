@@ -13,15 +13,16 @@ module.exports = (app) => {
     async (context) => {
         const source = 'pull_request';
 
+        const config = await context.config(`tag-someone-config.yml`);
+        
+        const tagPersonName = config.personToTag;
+
         const result = await checkFiles(context, source);
-
-        app.log.info('result =>' + JSON.stringify(result));
-
 
         await context.octokit.rest.pulls.createReview({
             ...getRepoSettings(context, source),
             event: 'REQUEST_CHANGES',
-            body: createCommentText(result)
+            body: createCommentText(result, tagPersonName)
         });
 
         async function checkFiles(context, source) {
@@ -54,8 +55,8 @@ module.exports = (app) => {
             }
         }
 
-        function createCommentText(result) {
-            let comment = `@DepickereSven would you be so kind to review the following code changes? \n`;
+        function createCommentText(result, tagPersonName) {
+            let comment = `@${tagPersonName} would you be so kind to review the following code changes? \n`;
             result.forEach(result => {
                 comment = comment.concat(`- [ ] ${result} \n`)
             })
