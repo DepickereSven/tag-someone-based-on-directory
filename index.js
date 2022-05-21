@@ -34,7 +34,7 @@ module.exports = (app) => {
         body: createCommentText(result, tagPersonName, message)
       });
 
-      async function checkFiles(context, source, regexPath) {
+      async function checkFiles(context, regexPath) {
 
         const fileMatchRegex = new RegExp(regexPath)
 
