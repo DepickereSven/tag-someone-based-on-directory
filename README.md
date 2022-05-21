@@ -9,18 +9,21 @@ We have a bot that can do this for you!
 
 ## Usage
 
-There are a couple of configuration options that you will need to setup depending on what you want.
+There are a couple of configuration options that you will need to set up depending on what you want.
 
 ```yml
-personToTag: UserNameOfPerson
+personToTag: UserNameOfPerson # This is the user you want to tag to send the comment to
+regexPath: (api\/) # If something changed in this folder we will post comment asking the user to verify the changes
 ```
+
+
 
 
 ### Extra available options
 
-| Name               | Description                                    |
-|--------------------|------------------------------------------------|
-| message            | The message you want to send to the user.      |
+| Name    | Description                               | Default                                                    |
+|---------|-------------------------------------------|------------------------------------------------------------|
+| message | The message you want to send to the user. | would you be so kind to review the following code changes? |
 
 
 ## Contributing
