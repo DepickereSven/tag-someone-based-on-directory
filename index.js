@@ -16,13 +16,7 @@ module.exports = (app) => {
 
       const config = await context.config(`tag-someone-config.yml`);
 
-      const tagPersonName = config.personToTag;
-      let message = config['message'];
       let regexPath = config['regexPath'];
-
-      if (message === undefined) {
-        message = 'would you be so kind to review the following code changes?';
-      }
 
       const commentResult = await checkComments(context);
 
@@ -31,7 +25,7 @@ module.exports = (app) => {
       await context.octokit.rest.pulls.createReview({
         ...getPullRequestSettings(context),
         event: 'REQUEST_CHANGES',
-        body: createCommentText(result, tagPersonName, message)
+        body: createCommentText(result)
       });
 
       async function checkFiles(context, regexPath) {
@@ -55,8 +49,8 @@ module.exports = (app) => {
         return filesThatNeedReview;
       }
 
-      function createCommentText(result, tagPersonName) {
-        let comment = `@${tagPersonName} ${message} \n`;
+      function createCommentText(result) {
+        let comment = getCommentMessage(config);
         result.forEach(result => {
           comment = comment.concat(`- [ ] ${result} \n`)
         })
@@ -105,6 +99,29 @@ module.exports = (app) => {
        */
       function getPagingNumber() {
         return {per_page: 100}
+      }
+
+      /**
+       * Get the comment message that mentions the person
+       * @param config The config read from the tag-someone-config.yml file
+       * @returns {string} the comment message
+       */
+      function getCommentMessage(config) {
+        const tagPersonName = config.personToTag;
+        return `@${tagPersonName} ${getMessage(config)} \n`;
+      }
+
+      /**
+       * This function determines whether there is a custom message in the config or we should pick the default one.
+       * @param config The config read from the tag-someone-config.yml file
+       * @returns {string} The message
+       */
+      function getMessage(config) {
+        let message = config['message'];
+        if (message === undefined) {
+          message = 'would you be so kind to review the following code changes?';
+        }
+        return message;
       }
 
     }
