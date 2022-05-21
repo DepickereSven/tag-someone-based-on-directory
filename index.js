@@ -14,21 +14,27 @@ module.exports = (app) => {
         const source = 'pull_request';
 
         const config = await context.config(`tag-someone-config.yml`);
-        
-        const tagPersonName = config.personToTag;
 
-        const result = await checkFiles(context, source);
+        const tagPersonName = config.personToTag;
+        let message = config['message'];
+        let regexPath = config['regexPath'];
+
+        if (message === undefined) {
+            message = 'would you be so kind to review the following code changes?';
+        }
+
+        const result = await checkFiles(context, source, regexPath);
 
         await context.octokit.rest.pulls.createReview({
             ...getRepoSettings(context, source),
             event: 'REQUEST_CHANGES',
-            body: createCommentText(result, tagPersonName)
+            body: createCommentText(result, tagPersonName, message)
         });
 
-        async function checkFiles(context, source) {
+        async function checkFiles(context, source, regexPath) {
             let per_page = 100
 
-            const fileMatchRegex = new RegExp('(api\/)')
+            const fileMatchRegex = new RegExp(regexPath)
 
             const filesThatNeedReview = [];
 
@@ -56,7 +62,7 @@ module.exports = (app) => {
         }
 
         function createCommentText(result, tagPersonName) {
-            let comment = `@${tagPersonName} would you be so kind to review the following code changes? \n`;
+            let comment = `@${tagPersonName} ${message} \n`;
             result.forEach(result => {
                 comment = comment.concat(`- [ ] ${result} \n`)
             })
