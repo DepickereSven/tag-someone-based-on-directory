@@ -11,8 +11,6 @@ module.exports = (app) => {
   app.on(
     ["pull_request.opened", "pull_request.synchronize"],
     async (context) => {
-        const source = 'pull_request';
-
         const config = await context.config(`tag-someone-config.yml`);
 
         const tagPersonName = config.personToTag;
@@ -23,10 +21,10 @@ module.exports = (app) => {
             message = 'would you be so kind to review the following code changes?';
         }
 
-        const result = await checkFiles(context, source, regexPath);
+        const result = await checkFiles(context, regexPath);
 
         await context.octokit.rest.pulls.createReview({
-            ...getRepoSettings(context, source),
+            ...getRepoSettings(context),
             event: 'REQUEST_CHANGES',
             body: createCommentText(result, tagPersonName, message)
         });
@@ -53,11 +51,11 @@ module.exports = (app) => {
             return filesThatNeedReview;
         }
 
-        function getRepoSettings(context, source) {
+        function getRepoSettings(context) {
             return {
                 owner: context.payload.repository.full_name.split('/')[0],
                 repo: context.payload.repository.name,
-                pull_number : context.payload[source].number
+                pull_number : context.payload.pull_request.number
             }
         }
 
