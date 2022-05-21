@@ -11,6 +11,9 @@ module.exports = (app) => {
   app.on(
     ["pull_request.opened", "pull_request.synchronize"],
     async (context) => {
+
+      const botSuffix = '[bot]';
+
       const config = await context.config(`tag-someone-config.yml`);
 
       const tagPersonName = config.personToTag;
@@ -21,16 +24,17 @@ module.exports = (app) => {
         message = 'would you be so kind to review the following code changes?';
       }
 
+      const commentResult = await checkComments(context);
+
       const result = await checkFiles(context, regexPath);
 
       await context.octokit.rest.pulls.createReview({
-        ...getRepoSettings(context),
+        ...getPullRequestSettings(context),
         event: 'REQUEST_CHANGES',
         body: createCommentText(result, tagPersonName, message)
       });
 
       async function checkFiles(context, source, regexPath) {
-        let per_page = 100
 
         const fileMatchRegex = new RegExp(regexPath)
 
@@ -38,7 +42,7 @@ module.exports = (app) => {
 
         for await (const changedFiles of context.octokit.paginate.iterator(
           context.octokit.pulls.listFiles,
-          {...getRepoSettings(context, source), per_page}
+          {...getPullRequestSettings(context), ...getPagingNumber()}
         )) {
           for (let file of changedFiles.data) {
 
@@ -51,7 +55,43 @@ module.exports = (app) => {
         return filesThatNeedReview;
       }
 
-      function getRepoSettings(context) {
+      function createCommentText(result, tagPersonName) {
+        let comment = `@${tagPersonName} ${message} \n`;
+        result.forEach(result => {
+          comment = comment.concat(`- [ ] ${result} \n`)
+        })
+        return comment.slice(0, -1);
+      }
+
+      async function checkComments(context) {
+        const appSlugName = await getAppSlugName();
+
+        let lastMessage = null;
+
+        for await (const commentsResult of context.octokit.paginate.iterator(
+          context.octokit.pulls.listReviews,
+          {...getPullRequestSettings(context), ...getPagingNumber()}
+        )) {
+          const filteredCommentMessage = commentsResult.data.filter(c => c.user.login === appSlugName.concat(botSuffix));
+          lastMessage = filteredCommentMessage[filteredCommentMessage.length - 1].body;
+          app.log.info('lastMessage => ' + lastMessage);
+        }
+
+        return null;
+      }
+
+      async function getAppSlugName() {
+        const appDetails = await context.octokit.apps.getAuthenticated();
+        return appDetails.data.slug;
+      }
+
+      /**
+       * Getting the settings for the pull request that can be
+       * reused in other requests
+       * @param context
+       * @returns {{owner: *, pull_number: any | number, repo}}
+       */
+      function getPullRequestSettings(context) {
         return {
           owner: context.payload.repository.full_name.split('/')[0],
           repo: context.payload.repository.name,
@@ -59,12 +99,12 @@ module.exports = (app) => {
         }
       }
 
-      function createCommentText(result, tagPersonName) {
-        let comment = `@${tagPersonName} ${message} \n`;
-        result.forEach(result => {
-          comment = comment.concat(`- [ ] ${result} \n`)
-        })
-        return comment.slice(0, -1);
+      /**
+       * Get the number on how many results we want to page
+       * @returns {{per_page: number}}
+       */
+      function getPagingNumber() {
+        return {per_page: 100}
       }
 
     }
