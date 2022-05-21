@@ -1,6 +1,7 @@
 // Deployments API example
 // See: https://developer.github.com/v3/repos/deployments/ to learn more
 
+const util = require("./lib/util");
 /**
  * This is the main entrypoint to your Probot app
  * @param {import('probot').Probot} app
@@ -18,14 +19,17 @@ module.exports = (app) => {
 
       let regexPath = config['regexPath'];
 
-      const commentResult = await checkComments(context);
+      const commentResult = await checkComments(context, config);
+
+      const resultCommtisPR = await context.octokit.rest.pulls.listCommits({...util.getPullRequestSettings(context), ...util.getPagingNumber()});
+
 
       const result = await checkFiles(context, regexPath);
 
       await context.octokit.rest.pulls.createReview({
-        ...getPullRequestSettings(context),
+        ...util.getPullRequestSettings(context),
         event: 'REQUEST_CHANGES',
-        body: createCommentText(result)
+        body: createCommentText(result, config)
       });
 
       async function checkFiles(context, regexPath) {
@@ -36,9 +40,11 @@ module.exports = (app) => {
 
         for await (const changedFiles of context.octokit.paginate.iterator(
           context.octokit.pulls.listFiles,
-          {...getPullRequestSettings(context), ...getPagingNumber()}
+          {...util.getPullRequestSettings(context), ...util.getPagingNumber()}
         )) {
           for (let file of changedFiles.data) {
+
+            app.log.info(`file name => ${file.filename}, file status => ${file.status}`);
 
             let fileName = file.filename;
             if (fileMatchRegex.test(fileName)) {
@@ -49,81 +55,42 @@ module.exports = (app) => {
         return filesThatNeedReview;
       }
 
-      function createCommentText(result) {
-        let comment = getCommentMessage(config);
+      function createCommentText(result, config) {
+        let comment = `${util.getCommentMessage(config)} \n`;
         result.forEach(result => {
           comment = comment.concat(`- [ ] ${result} \n`)
         })
         return comment.slice(0, -1);
       }
 
-      async function checkComments(context) {
+      async function checkComments(context, config) {
         const appSlugName = await getAppSlugName();
 
         let lastMessage = null;
 
         for await (const commentsResult of context.octokit.paginate.iterator(
           context.octokit.pulls.listReviews,
-          {...getPullRequestSettings(context), ...getPagingNumber()}
+          {...util.getPullRequestSettings(context), ...util.getPagingNumber()}
         )) {
           const filteredCommentMessage = commentsResult.data.filter(c => c.user.login === appSlugName.concat(botSuffix));
           lastMessage = filteredCommentMessage[filteredCommentMessage.length - 1].body;
-          app.log.info('lastMessage => ' + lastMessage);
         }
+
+        lastMessage = lastMessage.replace(util.getCommentMessage(config), '');
+        let message = lastMessage.split('\n')
+        message.shift();
 
         return null;
       }
 
+      /**
+       * This returns the slug name of the app
+       * @returns {Promise<string>}
+       */
       async function getAppSlugName() {
         const appDetails = await context.octokit.apps.getAuthenticated();
         return appDetails.data.slug;
       }
-
-      /**
-       * Getting the settings for the pull request that can be
-       * reused in other requests
-       * @param context
-       * @returns {{owner: *, pull_number: any | number, repo}}
-       */
-      function getPullRequestSettings(context) {
-        return {
-          owner: context.payload.repository.full_name.split('/')[0],
-          repo: context.payload.repository.name,
-          pull_number: context.payload.pull_request.number
-        }
-      }
-
-      /**
-       * Get the number on how many results we want to page
-       * @returns {{per_page: number}}
-       */
-      function getPagingNumber() {
-        return {per_page: 100}
-      }
-
-      /**
-       * Get the comment message that mentions the person
-       * @param config The config read from the tag-someone-config.yml file
-       * @returns {string} the comment message
-       */
-      function getCommentMessage(config) {
-        const tagPersonName = config.personToTag;
-        return `@${tagPersonName} ${getMessage(config)} \n`;
-      }
-
-      /**
-       * This function determines whether there is a custom message in the config or we should pick the default one.
-       * @param config The config read from the tag-someone-config.yml file
-       * @returns {string} The message
-       */
-      function getMessage(config) {
-        let message = config['message'];
-        if (message === undefined) {
-          message = 'would you be so kind to review the following code changes?';
-        }
-        return message;
-      }
-
     }
   )
 };
