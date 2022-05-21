@@ -1,26 +1,27 @@
-# tag-someone-based-on-directory
+# Tag someone based on directory
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) that Tag someone based on code changes in a certain folder
+> A GitHub App built with [Probot](https://github.com/probot/probot) that Tags someone based on code changes in a certain folder
 
-## Setup
+## Information
 
-```sh
-# Install dependencies
-npm install
+Certain people need to review certain code changes so instead you as a person tagging them to ask for a review. \
+We have a bot that can do this for you!
 
-# Run the bot
-npm start
+## Usage
+
+There are a couple of configuration options that you will need to setup depending on what you want.
+
+```yml
+personToTag: UserNameOfPerson
 ```
 
-## Docker
 
-```sh
-# 1. Build container
-docker build -t tag-someone-based-on-directory .
+### Extra available options
 
-# 2. Start container
-docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> tag-someone-based-on-directory
-```
+| Name               | Description                                    |
+|--------------------|------------------------------------------------|
+| message            | The message you want to send to the user.      |
+
 
 ## Contributing
 
