@@ -16,15 +16,33 @@ module.exports = (app) => {
 
       const config = await context.config(`tag-someone-config.yml`);
 
+      // app.log.info(`We are getting information`);
+      // app.log.info(`We are getting information, ${JSON.stringify(context)}`);
+
       if (tools.isPrOpened(context)) {
-        const filesThatNeedToBeChecked = await request.checkFiles(context, config, app);
+        const filesThatNeedToBeChecked = await request.checkFiles(context, config);
 
         await request.createReview(context, config, filesThatNeedToBeChecked);
       }
 
-      const commentResult = await request.checkComments(context, config);
+      const commitsInPr = await request.listCommitsInPr(context);
 
-      const resultCommitsInPr = await request.listCommitsInPr(context);
+      const commitsThatNeedToBeCheckedForChanges = tools.getCommitsThatNeedToBeCheckedForChanges(
+        commitsInPr.data,
+        tools.getPreviousCommitBeforeLastSync(context)
+      );
+
+      if (commitsThatNeedToBeCheckedForChanges.length === 1) {
+
+      } else {
+
+      }
+
+      const commentResult = await request.getLastCommentOfBot(context, config);
+
+      // app.log.info(`resultCommitsInPr => ${JSON.stringify(commitsInPr)}`);
+      app.log.info(`resultCommitsInPr => ${JSON.stringify(commitsThatNeedToBeCheckedForChanges)}`);
+
     }
   )
 };
