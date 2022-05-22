@@ -13,17 +13,13 @@ module.exports = (app) => {
     ["pull_request.opened", "pull_request.synchronize"],
     async (context) => {
 
-
       const config = await context.config(`tag-someone-config.yml`);
-
-      let regexPath = config['regexPath'];
 
       const commentResult = await request.checkComments(context, config);
 
       const resultCommitsInPr = await request.listCommitsInPr(context);
 
-
-      const comments = await request.checkFiles(context, regexPath, app);
+      const comments = await request.checkFiles(context, config, app);
 
       await request.createReview(context, config, comments);
 
