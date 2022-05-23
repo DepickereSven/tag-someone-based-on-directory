@@ -16,15 +16,12 @@ personToTag: UserNameOfPerson # This is the user you want to tag to send the com
 regexPath: (api\/) # If something changed in this folder we will post comment asking the user to verify the changes
 ```
 
-
-
-
 ### Extra available options
 
-| Name    | Description                               | Default                                                    |
-|---------|-------------------------------------------|------------------------------------------------------------|
-| message | The message you want to send to the user. | would you be so kind to review the following code changes? |
-
+| Name       | Description                                      | Default                                                    | Possible values                                         |
+|------------|--------------------------------------------------|------------------------------------------------------------|---------------------------------------------------------|
+| message    | The message you want to send to the user.        | would you be so kind to review the following code changes? |                                                         |
+| fileStatus | The status of the file you want to ping the user | added, modified, changed                                   | added removed modified renamed copied changed unchanged |
 
 ## Contributing
 

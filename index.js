@@ -1,6 +1,8 @@
 // Deployments API example
 // See: https://developer.github.com/v3/repos/deployments/ to learn more
 
+const request = require("./lib/request");
+const tools = require("./lib/tools");
 /**
  * This is the main entrypoint to your Probot app
  * @param {import('probot').Probot} app
@@ -11,61 +13,35 @@ module.exports = (app) => {
   app.on(
     ["pull_request.opened", "pull_request.synchronize"],
     async (context) => {
+
       const config = await context.config(`tag-someone-config.yml`);
 
-      const tagPersonName = config.personToTag;
-      let message = config['message'];
-      let regexPath = config['regexPath'];
+      // app.log.info(`We are getting information`);
+      // app.log.info(`We are getting information, ${JSON.stringify(context)}`);
 
-      if (message === undefined) {
-        message = 'would you be so kind to review the following code changes?';
+      if (tools.isPrOpened(context)) {
+        const filesThatNeedToBeChecked = await request.checkFiles(context, config);
+
+        await request.createReview(context, config, filesThatNeedToBeChecked);
       }
 
-      const result = await checkFiles(context, regexPath);
+      const commitsInPr = await request.listCommitsInPr(context);
 
-      await context.octokit.rest.pulls.createReview({
-        ...getRepoSettings(context),
-        event: 'REQUEST_CHANGES',
-        body: createCommentText(result, tagPersonName, message)
-      });
+      const commitsThatNeedToBeCheckedForChanges = tools.getCommitsThatNeedToBeCheckedForChanges(
+        commitsInPr.data,
+        tools.getPreviousCommitBeforeLastSync(context)
+      );
 
-      async function checkFiles(context, source, regexPath) {
-        let per_page = 100
+      if (commitsThatNeedToBeCheckedForChanges.length === 1) {
 
-        const fileMatchRegex = new RegExp(regexPath)
+      } else {
 
-        const filesThatNeedReview = [];
-
-        for await (const changedFiles of context.octokit.paginate.iterator(
-          context.octokit.pulls.listFiles,
-          {...getRepoSettings(context, source), per_page}
-        )) {
-          for (let file of changedFiles.data) {
-
-            let fileName = file.filename;
-            if (fileMatchRegex.test(fileName)) {
-              filesThatNeedReview.push(fileName)
-            }
-          }
-        }
-        return filesThatNeedReview;
       }
 
-      function getRepoSettings(context) {
-        return {
-          owner: context.payload.repository.full_name.split('/')[0],
-          repo: context.payload.repository.name,
-          pull_number: context.payload.pull_request.number
-        }
-      }
+      const commentResult = await request.getLastCommentOfBot(context, config);
 
-      function createCommentText(result, tagPersonName) {
-        let comment = `@${tagPersonName} ${message} \n`;
-        result.forEach(result => {
-          comment = comment.concat(`- [ ] ${result} \n`)
-        })
-        return comment.slice(0, -1);
-      }
+      // app.log.info(`resultCommitsInPr => ${JSON.stringify(commitsInPr)}`);
+      app.log.info(`resultCommitsInPr => ${JSON.stringify(commitsThatNeedToBeCheckedForChanges)}`);
 
     }
   )
